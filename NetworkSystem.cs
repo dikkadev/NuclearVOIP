@@ -78,86 +78,75 @@ namespace NuclearVOIP
         {
             elapsed += Time.fixedDeltaTime;
 
-            if (elapsed >= INTERVAL)
+            if (elapsed < INTERVAL)
+                return;
+
+            elapsed -= INTERVAL;
+
+            List<float> losses = new(connections.Count);
+            List<int> pings = new(connections.Count);
+            List<int> bandwidths = new(connections.Count);
+
+            List<float> teamLosses = [];
+            List<int> teamPings = [];
+            List<int> teamBandwidths = [];
+
+            GameManager.GetLocalHQ(out FactionHQ localHq);
+
+            for (int i = connections.Count - 1; i >= 0; i--)
             {
-                elapsed -= INTERVAL;
+                ulong identity = connections[i];
+                Player? peer = NetworkingManager.GetPlayer(identity);
 
-                List<float> losses = new(connections.Count);
-                List<int> pings = new(connections.Count);
-                List<int> bandwidths = new(connections.Count);
-
-                List<float> teamLosses = [];
-                List<int> teamPings = [];
-                List<int> teamBandwidths = [];
-
-                for (int i = 0; i < connections.Count; i++)
+                if (peer != null && ChatManager.IsMuted(peer))
                 {
-                    ulong identity = connections[i];
-                    Player? peer = NetworkingManager.GetPlayer(identity);
-
-                    if (peer != null && ChatManager.IsMuted(peer))
-                    {
-                        chan.Disconnect(identity);
-                        ConnectionLost?.Invoke(identity);
-                    } 
-                    else
-                    {
-                        NetworkStatistics state = chan.GetStatistics(identity);
-
-                        GameManager.GetLocalHQ(out FactionHQ localHq);
-                        if (peer?.HQ == localHq)
-                        {
-                            teamLosses.Add(state.packetLoss);
-                            teamPings.Add(state.ping);
-                            teamBandwidths.Add(state.bandwidth);
-                        }
-
-                        losses.Add(state.packetLoss);
-                        pings.Add(state.ping);
-                        bandwidths.Add(state.bandwidth);
-                    }
-
-                    if (teamLosses.Count == 0)
-                    {
-                        teamLosses.Add(1);
-                        teamPings.Add(0);
-                        teamBandwidths.Add(0);
-                    }
-
-                    if (losses.Count == 0)
-                    {
-                        losses.Add(1);
-                        pings.Add(0);
-                        bandwidths.Add(0);
-                    }
-
-                    NetworkStatus teamStatus = new()
-                    {
-                        avgLoss = teamLosses.Average(),
-                        maxLoss = teamLosses.Max(),
-
-                        avgPing = (int)teamPings.Average(),
-                        maxPing = teamPings.Max(),
-
-                        avgBandwidth = (int)teamBandwidths.Average(),
-                        minBandwidth = teamBandwidths.Min()
-                    };
-
-                    NetworkStatus allStatus = new()
-                    {
-                        avgLoss = losses.Average(),
-                        maxLoss = losses.Max(),
-
-                        avgPing = (int)pings.Average(),
-                        maxPing = pings.Max(),
-
-                        avgBandwidth = (int)bandwidths.Average(),
-                        minBandwidth = bandwidths.Min()
-                    };
-
-                    OnNetworkMeasurement?.Invoke(allStatus, teamStatus);
+                    chan.Disconnect(identity);
+                    continue;
                 }
+
+                NetworkStatistics state = chan.GetStatistics(identity);
+                if (peer?.HQ == localHq)
+                {
+                    teamLosses.Add(state.packetLoss);
+                    teamPings.Add(state.ping);
+                    teamBandwidths.Add(state.bandwidth);
+                }
+
+                losses.Add(state.packetLoss);
+                pings.Add(state.ping);
+                bandwidths.Add(state.bandwidth);
             }
+
+            NetworkStatus teamStatus = BuildStatus(teamLosses, teamPings, teamBandwidths);
+            NetworkStatus allStatus = BuildStatus(losses, pings, bandwidths);
+
+            OnNetworkMeasurement?.Invoke(allStatus, teamStatus);
+        }
+
+        private static NetworkStatus BuildStatus(List<float> losses, List<int> pings, List<int> bandwidths)
+        {
+            if (losses.Count == 0)
+            {
+                return new NetworkStatus
+                {
+                    avgLoss = 1,
+                    maxLoss = 1,
+                    avgPing = 0,
+                    maxPing = 0,
+                    avgBandwidth = 0,
+                    minBandwidth = 0
+                };
+            }
+
+            return new NetworkStatus
+            {
+                avgLoss = losses.Average(),
+                maxLoss = losses.Max(),
+                avgPing = (int)pings.Average(),
+                maxPing = pings.Max(),
+                avgBandwidth = (int)bandwidths.Average(),
+                minBandwidth = bandwidths.Min()
+            };
         }
 
         public void Disconnect(ulong player)

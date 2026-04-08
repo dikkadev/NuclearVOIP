@@ -18,7 +18,7 @@ namespace NuclearVOIP
     [BepInPlugin(MyPluginInfo.PLUGIN_GUID, MyPluginInfo.PLUGIN_NAME, MyPluginInfo.PLUGIN_VERSION)]
     public class Plugin: Mod
     {
-        private static readonly Options options = new()
+        private static readonly new Options options = new()
         {
             multiplayerOptions = Options.Multiplayer.CLIENT_ONLY,
             repository = "TYKUHN2/NuclearVOIP"

@@ -37,7 +37,7 @@ namespace NuclearVOIP
 
             while (stream.Position != stream.Length)
             {
-                if (stream.Position + 2 <= stream.Length)
+                if (stream.Position + 2 > stream.Length)
                 {
                     Plugin.Logger.LogWarning("VOIP packet truncated");
                     break;
