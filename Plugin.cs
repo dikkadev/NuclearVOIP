@@ -113,6 +113,10 @@ namespace NuclearVOIP
                 return;
             }
 
+            NetworkManagerNuclearOption.i.SetModdedServer(true);
+            if (AtomicFramework.NetworkingManager.instance == null)
+                gameObject.AddComponent<AtomicFramework.NetworkingManager>();
+
             LoadingManager.MissionUnloaded += MissionUnload;
             LoadingManager.MissionLoaded += LoadingFinished;
 

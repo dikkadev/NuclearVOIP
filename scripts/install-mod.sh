@@ -122,12 +122,31 @@ copy_if_exists() {
   fi
 }
 
+copy_if_missing() {
+  local src="$1"
+  local dest_dir="$2"
+  local dest_file="$dest_dir/$(basename "$src")"
+
+  if [[ ! -f "$src" ]]; then
+    log_verbose "Skipping missing file: $src"
+    return
+  fi
+
+  if [[ -f "$dest_file" ]]; then
+    log_verbose "Keeping existing $(basename "$src") in $dest_dir"
+    return
+  fi
+
+  log_verbose "Copying missing $(basename "$src") to $dest_dir"
+  cp "$src" "$dest_dir/"
+}
+
 copy_if_exists "$BUILD_OUTPUT_DIR/NuclearVOIP.dll" "$MOD_INSTALL_DIR"
 copy_if_exists "$BUILD_OUTPUT_DIR/NuclearVOIP.deps.json" "$MOD_INSTALL_DIR"
 
 if [[ -n "${OPUS_DLL_SOURCE:-}" ]]; then
   log_verbose "Configured opus source: $OPUS_DLL_SOURCE"
-  copy_if_exists "$OPUS_DLL_SOURCE" "$MOD_INSTALL_DIR"
+  copy_if_missing "$OPUS_DLL_SOURCE" "$MOD_INSTALL_DIR"
 else
   log_verbose "No OPUS_DLL_SOURCE configured"
 fi
