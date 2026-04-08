@@ -42,15 +42,67 @@ fi
 
 : "${STEAMAPPS_DIR:?Set STEAMAPPS_DIR in .env or the environment}"
 
-BUILD_CONFIGURATION="${BUILD_CONFIGURATION:-Release-Bep6}"
+BUILD_CONFIGURATION="${BUILD_CONFIGURATION:-Release-Bep5}"
 GAME_DIR="${GAME_DIR:-$STEAMAPPS_DIR/common/Nuclear Option}"
 MOD_INSTALL_DIR="${MOD_INSTALL_DIR:-$GAME_DIR/BepInEx/plugins/NuclearVOIP}"
 BUILD_OUTPUT_DIR="$REPO_ROOT/bin/x64/$BUILD_CONFIGURATION/netstandard2.1"
+BEPINEX_CONFIG_FILE="$GAME_DIR/BepInEx/config/BepInEx.cfg"
+
+detect_bepinex_major() {
+  if [[ ! -f "$BEPINEX_CONFIG_FILE" ]]; then
+    return 1
+  fi
+
+  local version_line
+  version_line="$(grep -E '^Version[[:space:]]*=' "$BEPINEX_CONFIG_FILE" || true)"
+  if [[ -z "$version_line" ]]; then
+    return 1
+  fi
+
+  local version
+  version="${version_line#*=}"
+  version="${version%%.*}"
+
+  if [[ "$version" =~ ^[0-9]+$ ]]; then
+    printf '%s\n' "$version"
+    return 0
+  fi
+
+  return 1
+}
+
+expected_build_for_major() {
+  case "$1" in
+    5)
+      printf '%s\n' "Release-Bep5"
+      ;;
+    6)
+      printf '%s\n' "Release-Bep6"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+if detected_major="$(detect_bepinex_major)"; then
+  log_verbose "Detected BepInEx major version: $detected_major"
+
+  if expected_build="$(expected_build_for_major "$detected_major")"; then
+    if [[ "$BUILD_CONFIGURATION" != "$expected_build" ]]; then
+      echo "Warning: requested build '$BUILD_CONFIGURATION' does not match installed BepInEx $detected_major." >&2
+      echo "Expected build configuration: $expected_build" >&2
+    fi
+  fi
+else
+  log_verbose "Could not detect BepInEx version from $BEPINEX_CONFIG_FILE"
+fi
 
 log_verbose "Build configuration: $BUILD_CONFIGURATION"
 log_verbose "Game directory: $GAME_DIR"
 log_verbose "Install directory: $MOD_INSTALL_DIR"
 log_verbose "Build output directory: $BUILD_OUTPUT_DIR"
+log_verbose "BepInEx config file: $BEPINEX_CONFIG_FILE"
 
 echo "Building NuclearVOIP ($BUILD_CONFIGURATION)..."
 dotnet build "$REPO_ROOT/NuclearVOIP.sln" -c "$BUILD_CONFIGURATION"
