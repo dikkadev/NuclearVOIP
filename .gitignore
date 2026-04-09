@@ -2,3 +2,7 @@
 bin/
 obj/
 .env
+dist/
+.env.local
+.env.*.local
+*.7z
